@@ -26,4 +26,14 @@ router.get(
 );
 router.post("/refresh-token", AuthController.refreshToken);
 router.post("/google", AuthController.googleLogin);
+router.post(
+	"/forgot-password",
+	validateRequest(userValidation.ForgotPasswordZodSchema),
+	AuthController.forgotPassword,
+);
+router.post(
+	"/reset-password",
+	validateRequest(userValidation.ResetPasswordZodSchema),
+	AuthController.resetPassword,
+);
 export const AuthRoutes = router;
