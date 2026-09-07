@@ -21,6 +21,8 @@ import type { TokenPayload } from "google-auth-library";
 import crypto from "crypto";
 import { redisClient } from "../../lib/redis";
 import { transporter } from "../../lib/nodemailer";
+import path from "path";
+import ejs from "ejs";
 
 const registerPatient = async (payload: IRegisterPatientPayload) => {
 	const { name, password, patient: patientData } = payload;
@@ -57,6 +59,7 @@ const registerPatient = async (payload: IRegisterPatientPayload) => {
 	});
 
 	const { patient, ...user } = createdUser;
+
 	const jwtPayload = {
 		userId: user.id,
 		name: user.name,
@@ -223,6 +226,7 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
 		});
 
 		googleIdTokenPayload = ticket.getPayload();
+		
 	} catch (error) {
 		console.log("Google ID token verification failed", error);
 		throw new Error("Invalid or Expired google id token.");
@@ -369,18 +373,29 @@ const forgotPassword = async (payload: IForgotPasswordPayload) => {
 
 	const key = `forgot-password-otp:${isUserExists.email}`;
 
+	const expirationSeconds = 5 * 60
+
 	await redisClient.set(key, otp, {
 		expiration: {
 			type: "EX",
-			value: 5 * 60,
+			value: expirationSeconds
 		},
 	});
+
+	const templatePath = path.join(process.cwd(),"src/app/templates/forgot-password.ejs");
+
+	const templateData = {
+		otp,
+		expirationMinutes: expirationSeconds / 60
+	}
+
+	const html = await ejs.renderFile(templatePath, templateData)
 
 	await transporter.sendMail({
 		from: config.email_sender,
 		to: isUserExists.email,
-		subject: "Forgot Password",
-		html: `<h1>Your OTP is ${otp}`,
+		subject: "Your Password Reset OTP",
+		html
 	});
 };
 
@@ -441,11 +456,19 @@ const resetPassword = async (payload: IResetPasswordPayload) => {
 
 	await redisClient.del(key);
 
+	const templatePath = path.join(process.cwd(),"src/app/templates/reset-password-success.ejs");
+
+	const templateData = {
+		otp
+	}
+
+	const html = await ejs.renderFile(templatePath, templateData)
+
 	await transporter.sendMail({
 		from: config.email_sender,
 		to: isUserExists.email,
 		subject: "Password Changed",
-		html: `<h1>Your Password is changed`,
+		html
 	});
 };
 
