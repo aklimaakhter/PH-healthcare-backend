@@ -37,7 +37,10 @@ const registerPatient = async (payload: IRegisterPatientPayload) => {
 		throw new Error("User with this email already exists");
 	}
 
-	const hashedPassword = await bcrypt.hash(password, Number(config.bcrypt_salt_rounds));
+	const hashedPassword = await bcrypt.hash(
+		password,
+		Number(config.bcrypt_salt_rounds),
+	);
 
 	const otpValue = crypto.randomInt(100000, 1000000).toString();
 	const otpKey = `patient-registration-otp:${email}`;
@@ -47,41 +50,47 @@ const registerPatient = async (payload: IRegisterPatientPayload) => {
 	await redisClient.set(otpKey, otpValue, {
 		expiration: {
 			type: "EX",
-			value: expirationSeconds
+			value: expirationSeconds,
 		},
 	});
 
 	const patientRegistrationKey = `patient-registration-data:${email}`;
-	const redisUserRegistrationData ={
+	const redisUserRegistrationData = {
 		name,
 		email,
 		password: hashedPassword,
-		patient: patientData
-	}
+		patient: patientData,
+	};
 
-	await redisClient.set(patientRegistrationKey, JSON.stringify(redisUserRegistrationData), {
-		expiration: {
-			type: "EX",
-			value: expirationSeconds
+	await redisClient.set(
+		patientRegistrationKey,
+		JSON.stringify(redisUserRegistrationData),
+		{
+			expiration: {
+				type: "EX",
+				value: expirationSeconds,
+			},
 		},
-	});
+	);
 
-
-	const templatePath = path.join(process.cwd(),"src/app/templates/registration-user-otp.ejs");
+	const templatePath = path.join(
+		process.cwd(),
+		"src/app/templates/registration-user-otp.ejs",
+	);
 
 	const templateData = {
 		email,
 		otp: otpValue,
-		expirationMinutes: expirationSeconds / 60
-	}
+		expirationMinutes: expirationSeconds / 60,
+	};
 
-	const html = await ejs.renderFile(templatePath, templateData)
+	const html = await ejs.renderFile(templatePath, templateData);
 
 	await transporter.sendMail({
 		from: config.email_sender,
 		to: email,
 		subject: "Your Email Verification OTP ",
-		html
+		html,
 	});
 };
 
@@ -98,7 +107,7 @@ const verifyPatientEmail = async (payload: IVerifyPatientPayload) => {
 	}
 
 	if (isUserExists?.emailVerified) {
-		throw new Error("User not verified");
+		throw new Error("User is already verified");
 	}
 
 	if (isUserExists?.isDeleted || isUserExists?.status === "DELETED") {
@@ -122,7 +131,7 @@ const verifyPatientEmail = async (payload: IVerifyPatientPayload) => {
 	const patientRegistrationKey = `patient-registration-data:${email}`;
 	const redisPatientData = await redisClient.get(patientRegistrationKey);
 
-	if(!redisPatientData){
+	if (!redisPatientData) {
 		throw new Error("Patient Doesn't exist");
 	}
 
@@ -139,7 +148,7 @@ const verifyPatientEmail = async (payload: IVerifyPatientPayload) => {
 			patient: {
 				create: {
 					name: patientPayload.name,
-			        email: patientPayload.email,
+					email: patientPayload.email,
 					contactNumber: patientPayload.patient.contactNumber || "",
 				},
 			},
@@ -150,21 +159,24 @@ const verifyPatientEmail = async (payload: IVerifyPatientPayload) => {
 
 	await redisClient.del(patientRegistrationKey);
 
-	const templatePath = path.join(process.cwd(),"src/app/templates/patient-welcome-email.ejs");
+	const templatePath = path.join(
+		process.cwd(),
+		"src/app/templates/patient-welcome-email.ejs",
+	);
 
 	const templateData = {
 		name: createdUser.name,
 		email: createdUser.email,
-		
-	}
+		loginUrl: `${config.frontend_url}/login`,
+	};
 
-	const html = await ejs.renderFile(templatePath, templateData)
+	const html = await ejs.renderFile(templatePath, templateData);
 
 	await transporter.sendMail({
 		from: config.email_sender,
 		to: email,
 		subject: "Welcome to PH Healthcare System",
-		html
+		html,
 	});
 
 	const { patient, ...user } = createdUser;
@@ -194,7 +206,7 @@ const verifyPatientEmail = async (payload: IVerifyPatientPayload) => {
 		accessToken,
 		refreshToken,
 	};
-}
+};
 
 const loginUser = async (payload: ILoginUserPayload) => {
 	const { password } = payload;
@@ -335,7 +347,6 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
 		});
 
 		googleIdTokenPayload = ticket.getPayload();
-		
 	} catch (error) {
 		console.log("Google ID token verification failed", error);
 		throw new Error("Invalid or Expired google id token.");
@@ -398,6 +409,7 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
 				data: {
 					name: googleIdTokenPayload.name,
 					email: googleIdTokenPayload.email,
+					googleId: googleIdTokenPayload.sub,
 					role: Role.PATIENT,
 					authProvider: AuthProvider.GOOGLE,
 					emailVerified: true,
@@ -410,6 +422,26 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
 				},
 			});
 		}
+
+		const templatePath = path.join(
+			process.cwd(),
+			"src/app/templates/patient-welcome-email.ejs",
+		);
+
+		const templateData = {
+			name: user.name,
+			email: user.email,
+			loginUrl: `${config.frontend_url}/login`,
+		};
+
+		const html = await ejs.renderFile(templatePath, templateData);
+
+		await transporter.sendMail({
+			from: config.email_sender,
+			to: user.email,
+			subject: "Welcome to PH Healthcare System",
+			html,
+		});
 	}
 
 	if (!user) {
@@ -482,29 +514,32 @@ const forgotPassword = async (payload: IForgotPasswordPayload) => {
 
 	const key = `forgot-password-otp:${isUserExists.email}`;
 
-	const expirationSeconds = 5 * 60
+	const expirationSeconds = 5 * 60;
 
 	await redisClient.set(key, otp, {
 		expiration: {
 			type: "EX",
-			value: expirationSeconds
+			value: expirationSeconds,
 		},
 	});
 
-	const templatePath = path.join(process.cwd(),"src/app/templates/forgot-password.ejs");
+	const templatePath = path.join(
+		process.cwd(),
+		"src/app/templates/forgot-password.ejs",
+	);
 
 	const templateData = {
 		otp,
-		expirationMinutes: expirationSeconds / 60
-	}
+		expirationMinutes: expirationSeconds / 60,
+	};
 
-	const html = await ejs.renderFile(templatePath, templateData)
+	const html = await ejs.renderFile(templatePath, templateData);
 
 	await transporter.sendMail({
 		from: config.email_sender,
 		to: isUserExists.email,
 		subject: "Your Password Reset OTP",
-		html
+		html,
 	});
 };
 
@@ -565,19 +600,22 @@ const resetPassword = async (payload: IResetPasswordPayload) => {
 
 	await redisClient.del(key);
 
-	const templatePath = path.join(process.cwd(),"src/app/templates/reset-password-success.ejs");
+	const templatePath = path.join(
+		process.cwd(),
+		"src/app/templates/reset-password-success.ejs",
+	);
 
 	const templateData = {
-		otp
-	}
+		otp,
+	};
 
-	const html = await ejs.renderFile(templatePath, templateData)
+	const html = await ejs.renderFile(templatePath, templateData);
 
 	await transporter.sendMail({
 		from: config.email_sender,
 		to: isUserExists.email,
 		subject: "Password Changed",
-		html
+		html,
 	});
 };
 

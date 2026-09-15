@@ -14,7 +14,7 @@ const registerPatient = catchAsync(async (req: Request, res: Response) => {
 
 	const payload = req.body;
 
-	 await AuthService.registerPatient(payload);
+	await AuthService.registerPatient(payload);
 
 	// const { accessToken, refreshToken, user, patient } = result;
 
@@ -35,15 +35,14 @@ const registerPatient = catchAsync(async (req: Request, res: Response) => {
 		statusCode: httpStatus.CREATED,
 		success: true,
 		message: "Email verification OTP sent",
-		data: null
+		data: null,
 	});
 });
 
 const verifyPatientEmail = catchAsync(async (req: Request, res: Response) => {
-	
 	const payload = req.body;
 
-	 const result = await AuthService.verifyPatientEmail(payload);
+	const result = await AuthService.verifyPatientEmail(payload);
 
 	const { accessToken, refreshToken, user, patient } = result;
 
@@ -68,8 +67,8 @@ const verifyPatientEmail = catchAsync(async (req: Request, res: Response) => {
 			accessToken,
 			refreshToken,
 			user,
-			patient
-		}
+			patient,
+		},
 	});
 });
 

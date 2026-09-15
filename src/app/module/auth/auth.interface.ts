@@ -15,7 +15,7 @@ export interface IRegisterPatientPayload {
 }
 export interface IVerifyPatientPayload {
 	email: string;
-	otp: string
+	otp: string;
 }
 
 export interface IRequestUser {
