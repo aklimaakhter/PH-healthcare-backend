@@ -10,10 +10,22 @@ router.post(
 	auth(Role.PATIENT),
 	AppointmentController.bookAppointment,
 );
+router.post(
+	"/pay-appointment",
+	auth(Role.PATIENT),
+	AppointmentController.payAppointment,
+);
 
 router.get(
 	"/book-appointment/payment/callback",
 	AppointmentController.bookAppointmentCallback,
 );
+
+router.post(
+	"/cancel-appointment",
+	auth(Role.PATIENT),
+	AppointmentController.cancelAppointment,
+);
+
 
 export const AppointmentRoutes = router;
